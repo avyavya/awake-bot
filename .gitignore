@@ -1,4 +1,2 @@
 .env
 .docker_build/
-/vendor/
-!/vendor/vendor.json

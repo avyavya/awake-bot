@@ -31,8 +31,6 @@ func main() {
 		c.HTML(http.StatusOK, "index.tmpl.html", nil)
 	})
 
-	router.GET("/ping", onPing)
-
 	// Setup HTTP Server for receiving requests from LINE platform
 	router.POST("/message", func(c *gin.Context) {
 		events, err := bot.ParseRequest(c.Request)
@@ -46,12 +44,13 @@ func main() {
 		}
 
 		for _, event := range events {
-			log.Print(event.Type)
+			log.Printf("event type: %s", event.Type)
+			log.Printf("user id: %s", event.Source.UserID)
 
 			if event.Type == linebot.EventTypeMessage {
 				switch message := event.Message.(type) {
 				case *linebot.TextMessage:
-					log.Print(message.Text)
+					log.Printf("message: %s", event.Source.UserID)
 					if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(message.Text)).Do(); err != nil {
 						log.Print(err)
 					}
@@ -60,6 +59,7 @@ func main() {
 		}
 	})
 
+	router.HEAD("/ping", onPing)
 	router.Run(":" + port)
 }
 

@@ -44,13 +44,13 @@ func main() {
 		}
 
 		for _, event := range events {
-			log.Printf("event type: %s", event.Type)
-			log.Printf("user id: %s", event.Source.UserID)
+			log.Printf("[info] event type: %s", event.Type)
+			log.Printf("[info] user id: %s", event.Source.UserID)
 
 			if event.Type == linebot.EventTypeMessage {
 				switch message := event.Message.(type) {
 				case *linebot.TextMessage:
-					log.Printf("message: %s", event.Source.UserID)
+					log.Printf("[info] message: %s", message.Text)
 					if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(message.Text)).Do(); err != nil {
 						log.Print(err)
 					}
@@ -64,5 +64,5 @@ func main() {
 }
 
 func onPing(c *gin.Context) {
-	c.String(http.StatusOK, "Pong.")
+	c.String(http.StatusOK, "")
 }

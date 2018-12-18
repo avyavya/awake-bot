@@ -4,7 +4,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
+	"github.com/carlescere/scheduler"
 	"github.com/gin-gonic/gin"
 	"github.com/line/line-bot-sdk-go/linebot"
 )
@@ -21,6 +23,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	job := func() {
+		t := time.Now()
+		log.Println("[info] Time's up! @", t.UTC())
+	}
+
+	// todo JST
+	scheduler.Every().Day().At("22:01").Run(job)
 
 	router := gin.New()
 	router.Use(gin.Logger())
@@ -60,6 +70,7 @@ func main() {
 	})
 
 	router.HEAD("/ping", onPing)
+	// will be ignored all this below
 	router.Run(":" + port)
 }
 

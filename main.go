@@ -1,6 +1,7 @@
 package main
 
 import (
+	"awake-bot/hoge"
 	"log"
 	"net/http"
 	"os"
@@ -13,6 +14,11 @@ import (
 
 func main() {
 	port := os.Getenv("PORT")
+
+	m := hoge.New("id", "message", "timestamp")
+	log.Println(m.Text)
+	m2 := hoge.NewMessage("id", "message", "timestamp")
+	log.Println(m2.Text)
 
 	if port == "" {
 		log.Fatal("$PORT must be set")

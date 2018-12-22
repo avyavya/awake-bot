@@ -69,7 +69,8 @@ func main() {
 		}
 	})
 
-	router.HEAD("/ping", onPing)
+	// for UptimeRobot
+	router.GET("/ping", onPing)
 	// will be ignored all this below
 	router.Run(":" + port)
 }

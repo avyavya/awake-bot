@@ -11,6 +11,17 @@ import (
 	"github.com/line/line-bot-sdk-go/linebot"
 )
 
+func init() {
+	tz := os.Getenv("TZ")
+	if tz == "" {
+		return
+	}
+
+	local, _ := time.LoadLocation(tz)
+	log.Println("Timezone: " + local.String())
+	time.Local = local
+}
+
 func main() {
 	port := os.Getenv("PORT")
 
@@ -26,11 +37,10 @@ func main() {
 
 	job := func() {
 		t := time.Now()
-		log.Println("[info] Time's up! @", t.UTC())
+		log.Println("[info] Time's up! @", t)
 	}
 
-	// todo JST
-	scheduler.Every().Day().At("22:01").Run(job)
+	scheduler.Every().Day().At("19:47").Run(job)
 
 	router := gin.New()
 	router.Use(gin.Logger())

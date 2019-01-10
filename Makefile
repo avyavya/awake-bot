@@ -11,3 +11,6 @@ clean:
 
 heroku: $(DOCKER_CMD)
 	heroku container:push web
+
+debug:
+	export $(cat .env); go run ./main.go

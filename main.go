@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/carlescere/scheduler"
@@ -116,13 +117,15 @@ func onPush(c *gin.Context) {
 
 	if token != c.PostForm("token") {
 		c.Writer.WriteHeader(http.StatusNotFound)
-		log.Fatalln("[warn] Invalid token @", token, c.PostForm("token"))
+		log.Printf("[err] Invalid token %s", c.PostForm("token"))
+		return
 	}
 
 	roomId := c.PostForm("room_id")
 
 	if roomId == "" {
-		log.Fatalln("[err] 'room_id' is missing.")
+		log.Printf("[err] 'room_id' is missing.")
+		return
 	}
 
 	log.Printf("[info] push message target id: %s", roomId)
@@ -130,14 +133,21 @@ func onPush(c *gin.Context) {
 	message := c.PostForm("message")
 
 	if message == "" {
-		log.Fatalln("[err] 'message' is missing.")
+		log.Printf("[err] 'message' is missing.")
+		return
+	}
+
+	timeout, _ := strconv.Atoi(c.DefaultPostForm("timeout", "0"))
+
+	if timeout > 0 {
+		log.Printf("[info] with timeout: %d sec", timeout)
 	}
 
 	if err := pushMessage(roomId, message); err != nil {
 		log.Print(err)
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 	} else {
-		log.Printf("[info] message pushed:")
+		log.Printf("[info] message pushed.")
 		c.Writer.WriteHeader(http.StatusOK)
 	}
 }

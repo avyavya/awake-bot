@@ -1,13 +1,13 @@
 package main
 
 import (
+	"awake-bot/timeout"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/carlescere/scheduler"
 	"github.com/gin-gonic/gin"
 	"github.com/line/line-bot-sdk-go/linebot"
 )
@@ -18,7 +18,9 @@ const (
 
 var (
 	// LineBot Client
-	bot *linebot.Client
+	bot      *linebot.Client
+	snooze   *timeout.Timeout
+	repeated int
 )
 
 func init() {
@@ -46,13 +48,6 @@ func main() {
 	}
 
 	bot = lb
-
-	job := func() {
-		t := time.Now()
-		log.Println("[info] Time's up! @", t)
-	}
-
-	scheduler.Every().Day().At("19:47").Run(job)
 
 	router := gin.New()
 	router.Use(gin.Logger())
@@ -137,10 +132,11 @@ func onPush(c *gin.Context) {
 		return
 	}
 
-	timeout, _ := strconv.Atoi(c.DefaultPostForm("timeout", "0"))
+	wait, _ := strconv.Atoi(c.DefaultPostForm("timeout", "0"))
 
-	if timeout > 0 {
-		log.Printf("[info] with timeout: %d sec", timeout)
+	if wait > 0 {
+		snooze = timeout.New(onTimeout, wait, roomId)
+		repeated = 0
 	}
 
 	if err := pushMessage(roomId, message); err != nil {
@@ -155,4 +151,17 @@ func onPush(c *gin.Context) {
 func pushMessage(roomId string, message string) error {
 	_, err := bot.PushMessage(roomId, linebot.NewTextMessage(message)).Do()
 	return err
+}
+
+func onTimeout(roomId string, wait int) {
+	if repeated < 5 {
+		msg := "おーい。起きてるかー？？"
+		pushMessage(roomId, msg)
+
+		repeated++
+		log.Printf("[info] snooze %d with timeout: %d sec for roomId %s", repeated, wait, roomId)
+		snooze = timeout.New(onTimeout, wait, roomId)
+	} else {
+		log.Printf("[info] snooze repeated %d times.", repeated)
+	}
 }

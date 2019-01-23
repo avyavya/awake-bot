@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -17,10 +18,8 @@ const (
 )
 
 var (
-	// LineBot Client
-	bot      *linebot.Client
-	snooze   *timeout.Timeout
-	repeated int
+	bot    *linebot.Client             // LineBot Client
+	snooze map[string]*timeout.Timeout // roomId
 )
 
 func init() {
@@ -32,6 +31,8 @@ func init() {
 	local, _ := time.LoadLocation(tz)
 	log.Println("Timezone: " + local.String())
 	time.Local = local
+
+	snooze = map[string]*timeout.Timeout{}
 }
 
 func main() {
@@ -63,15 +64,11 @@ func main() {
 	// push message via HTTP request
 	router.POST("/push", onPush)
 	// for UptimeRobot
+	router.HEAD("/ping", onPing)
 	router.GET("/ping", onPing)
-	// pushTest()
 
 	// will be ignored all this below
 	router.Run(":" + port)
-}
-
-func pushTest() {
-	bot.PushMessage("C377079ced8ae010da2a12f5e2e365f30", linebot.NewTextMessage("test!")).Do()
 }
 
 func onPing(c *gin.Context) {
@@ -98,8 +95,29 @@ func onMessage(c *gin.Context) {
 			switch message := event.Message.(type) {
 			case *linebot.TextMessage:
 				log.Printf("[info] message: %s", message.Text)
-				if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(message.Text)).Do(); err != nil {
-					log.Print(err)
+
+				if message.Text == "/id" {
+					reply := "UserId: " + event.Source.UserID + ", GroupId: " + event.Source.GroupID
+					bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(reply)).Do()
+					return
+				}
+
+				if to, e := snooze[event.Source.GroupID]; e {
+					if event.Source.UserID == to.GetMonitoringUserId() {
+						r := regexp.MustCompile(`^おはよ.`)
+						if r.MatchString(message.Text) {
+							log.Printf("[info] monitoring user id %s is matched. stop monitoring.", to.GetMonitoringUserId())
+
+							msg := "おはよー！！\n今日も一日がんばるぞい☀"
+							bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(msg)).Do()
+							// ReplyToken available for 1 time only
+							pushSticker(to.RoomId, "3", "193")
+
+							to.Stop()
+							delete(snooze, to.RoomId)
+							return
+						}
+					}
 				}
 			}
 		}
@@ -116,11 +134,20 @@ func onPush(c *gin.Context) {
 		return
 	}
 
+	userId := c.PostForm("user_id")
+
+	if userId == "" {
+		c.Writer.WriteHeader(http.StatusBadRequest)
+		log.Printf("[err] 'user_id' is missing.")
+		return
+	}
+
+	log.Printf("[info] monitoring target user id: %s", userId)
+
 	roomId := c.PostForm("room_id")
 
 	if roomId == "" {
-		log.Printf("[err] 'room_id' is missing.")
-		return
+		roomId = userId
 	}
 
 	log.Printf("[info] push message target id: %s", roomId)
@@ -129,14 +156,19 @@ func onPush(c *gin.Context) {
 
 	if message == "" {
 		log.Printf("[err] 'message' is missing.")
+		c.Writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	wait, _ := strconv.Atoi(c.DefaultPostForm("timeout", "0"))
 
 	if wait > 0 {
-		snooze = timeout.New(onTimeout, wait, roomId)
-		repeated = 0
+		if _, exists := snooze[roomId]; exists {
+			log.Printf("[err] snooze for roomId %s is already exists.", roomId)
+			return
+		} else {
+			snooze[roomId] = timeout.New(onTimeout, wait, roomId, userId)
+		}
 	}
 
 	if err := pushMessage(roomId, message); err != nil {
@@ -153,15 +185,23 @@ func pushMessage(roomId string, message string) error {
 	return err
 }
 
-func onTimeout(roomId string, wait int) {
-	if repeated < 5 {
-		msg := "おーい。起きてるかー？？"
-		pushMessage(roomId, msg)
+func pushSticker(roomId string, packageId string, stickerId string) error {
+	msg := linebot.NewStickerMessage(packageId, stickerId)
+	_, err := bot.PushMessage(roomId, msg).Do()
+	return err
+}
 
-		repeated++
-		log.Printf("[info] snooze %d with timeout: %d sec for roomId %s", repeated, wait, roomId)
-		snooze = timeout.New(onTimeout, wait, roomId)
+func onTimeout(to *timeout.Timeout) {
+	if to.Repeated < 5 { // todo
+		msg := "おーい。起きてるかー？？"
+		pushMessage(to.RoomId, msg)
+		pushSticker(to.RoomId, "11537", "52002744")
+
+		log.Printf("[info] snooze %d with timeout: %d sec for roomId %s", to.Repeated, to.Sec, to.RoomId)
+		to.Snooze()
 	} else {
-		log.Printf("[info] snooze repeated %d times.", repeated)
+		pushSticker(to.RoomId, "11537", "52002764")
+		log.Printf("[info] snooze repeated %d times.", to.Repeated)
+		delete(snooze, to.RoomId)
 	}
 }

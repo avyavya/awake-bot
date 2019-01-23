@@ -6,31 +6,42 @@ import (
 )
 
 type Timeout struct {
-	sec       int
-	onTimeout func(roomId string, sec int)
-	roomId    string
+	Sec       int
+	RoomId    string
+	userId    string
+	Repeated  int
 	canceled  bool
+	onTimeout func(*Timeout)
 }
 
-func (to *Timeout) Cancel() {
-	log.Printf("[info] Snooze canceled.")
-	to.canceled = true
-}
-
-func New(f func(string, int), timeout int, roomId string) *Timeout {
-	to := Timeout{timeout, f, roomId, false}
+func New(f func(*Timeout), timeout int, roomId string, userId string) *Timeout {
+	to := Timeout{timeout, roomId, userId, 0, false, f}
 	go setTimeout(&to)
 	return &to
 }
 
 // invoke func after timeout sec
 func setTimeout(to *Timeout) {
-	time.Sleep(time.Duration(to.sec) * time.Second)
+	time.Sleep(time.Duration(to.Sec) * time.Second)
 
 	if to.canceled {
 		return
 	}
 
-	log.Printf("[info] Timed-out %d", to.sec)
-	to.onTimeout(to.roomId, to.sec)
+	log.Printf("[info] Timed-out %d", to.Sec)
+	to.onTimeout(to)
+}
+
+func (to *Timeout) GetMonitoringUserId() string {
+	return to.userId
+}
+
+func (to *Timeout) Snooze() {
+	to.Repeated++
+	go setTimeout(to)
+}
+
+func (to *Timeout) Stop() {
+	log.Printf("[info] Snooze canceled.")
+	to.canceled = true
 }

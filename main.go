@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/line/line-bot-sdk-go/linebot"
+	"github.com/pinzolo/flagday"
 )
 
 const (
@@ -128,6 +129,10 @@ func onMessage(c *gin.Context) {
 func onPush(c *gin.Context) {
 	token := os.Getenv(AwakeBotTokenEnv)
 
+	if isHolidayToday() {
+		log.Printf("[info] Today is holiday. // todo skip")
+	}
+
 	if token != c.PostForm("token") {
 		c.Writer.WriteHeader(http.StatusNotFound)
 		log.Printf("[err] Invalid token %s", c.PostForm("token"))
@@ -204,4 +209,9 @@ func onTimeout(to *timeout.Timeout) {
 		log.Printf("[info] snooze repeated %d times.", to.Repeated)
 		delete(snooze, to.RoomId)
 	}
+}
+
+func isHolidayToday() bool {
+	today := time.Now()
+	return today.Weekday() == 0 || today.Weekday() == 6 || flagday.IsPublicHolidayTime(today)
 }

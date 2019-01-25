@@ -6,16 +6,17 @@ import (
 )
 
 type Timeout struct {
-	Sec       int
-	RoomId    string
-	userId    string
-	Repeated  int
-	canceled  bool
-	onTimeout func(*Timeout)
+	onTimeout   func(*Timeout)
+	Sec         int
+	RoomId      string
+	userId      string
+	AlertRoomId string
+	Repeated    int
+	canceled    bool
 }
 
-func New(f func(*Timeout), timeout int, roomId string, userId string) *Timeout {
-	to := Timeout{timeout, roomId, userId, 0, false, f}
+func New(f func(*Timeout), timeout int, roomId string, userId string, alertRoomId string) *Timeout {
+	to := Timeout{f, timeout, roomId, userId, alertRoomId, 0, false}
 	go setTimeout(&to)
 	return &to
 }

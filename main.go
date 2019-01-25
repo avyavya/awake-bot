@@ -2,6 +2,7 @@ package main
 
 import (
 	"awake-bot/timeout"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -112,7 +113,7 @@ func onMessage(c *gin.Context) {
 							msg := "おはよー！！\n今日も一日がんばるぞい☀"
 							bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(msg)).Do()
 							// ReplyToken available for 1 time only
-							pushSticker(to.RoomId, "3", "193")
+							pushSticker(to.RoomId, "11537", "52002764")
 
 							to.Stop()
 							delete(snooze, to.RoomId)
@@ -172,7 +173,8 @@ func onPush(c *gin.Context) {
 			log.Printf("[err] snooze for roomId %s is already exists.", roomId)
 			return
 		} else {
-			snooze[roomId] = timeout.New(onTimeout, wait, roomId, userId)
+			alertRoomId := c.PostForm("alert_room_id")
+			snooze[roomId] = timeout.New(onTimeout, wait, roomId, userId, alertRoomId)
 		}
 	}
 
@@ -205,8 +207,15 @@ func onTimeout(to *timeout.Timeout) {
 		log.Printf("[info] snooze %d with timeout: %d sec for roomId %s", to.Repeated, to.Sec, to.RoomId)
 		to.Snooze()
 	} else {
-		pushSticker(to.RoomId, "11537", "52002764")
-		log.Printf("[info] snooze repeated %d times.", to.Repeated)
+		pushMessage(to.RoomId, "もう知らない！\nあずさのバカ！！")
+		pushSticker(to.RoomId, "3", "193")
+
+		if to.AlertRoomId != "" {
+			pushMessage(to.RoomId, fmt.Sprintf("(ここで ID: %s に通報する)", to.AlertRoomId))
+			pushMessage(to.AlertRoomId, fmt.Sprintf("%d 回起こしたんですが反応なかったので寝てるかもです😇", to.Repeated))
+		}
+
+		log.Printf("[info] snooze repeated %d times. finish monitoring.", to.Repeated)
 		delete(snooze, to.RoomId)
 	}
 }

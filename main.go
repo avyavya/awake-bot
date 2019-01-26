@@ -1,6 +1,7 @@
 package main
 
 import (
+	"awake-bot/forecast"
 	"awake-bot/timeout"
 	"fmt"
 	"log"
@@ -68,6 +69,7 @@ func main() {
 	// for UptimeRobot
 	router.HEAD("/ping", onPing)
 	router.GET("/ping", onPing)
+	// go sendForecast("C377079ced8ae010da2a12f5e2e365f30")
 
 	// will be ignored all this below
 	router.Run(":" + port)
@@ -110,10 +112,9 @@ func onMessage(c *gin.Context) {
 						if r.MatchString(message.Text) {
 							log.Printf("[info] monitoring user id %s is matched. stop monitoring.", to.GetMonitoringUserId())
 
-							msg := "おはよー！！\n今日も一日がんばるぞい☀"
-							bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(msg)).Do()
-							// ReplyToken available for 1 time only
-							pushSticker(to.RoomId, "11537", "52002764")
+							bot.ReplyMessage(event.ReplyToken,
+								newTextMessage("おはよー！！\n今日も一日がんばるぞい☀"),
+								newStickerMessage("11537", "52002764")).Do()
 
 							to.Stop()
 							delete(snooze, to.RoomId)
@@ -184,6 +185,7 @@ func onPush(c *gin.Context) {
 	} else {
 		log.Printf("[info] message pushed.")
 		c.Writer.WriteHeader(http.StatusOK)
+		go sendForecast(roomId)
 	}
 }
 
@@ -198,21 +200,31 @@ func pushSticker(roomId string, packageId string, stickerId string) error {
 	return err
 }
 
+func newTextMessage(msg string) linebot.SendingMessage {
+	return linebot.NewTextMessage(msg)
+}
+
+func newStickerMessage(packageId, stickerId string) linebot.SendingMessage {
+	return linebot.NewStickerMessage(packageId, stickerId)
+}
+
 func onTimeout(to *timeout.Timeout) {
 	if to.Repeated < 5 { // todo
-		msg := "おーい。起きてるかー？？"
-		pushMessage(to.RoomId, msg)
-		pushSticker(to.RoomId, "11537", "52002744")
+		bot.PushMessage(to.RoomId,
+			newTextMessage("おーい。起きてるかー？？"),
+			newStickerMessage("11537", "52002744")).Do()
 
 		log.Printf("[info] snooze %d with timeout: %d sec for roomId %s", to.Repeated, to.Sec, to.RoomId)
 		to.Snooze()
 	} else {
-		pushMessage(to.RoomId, "もう知らない！\nあずさのバカ！！")
-		pushSticker(to.RoomId, "3", "193")
+
+		bot.PushMessage(to.RoomId,
+			newTextMessage("もう知らない！\nあずさのバカ！！"),
+			newStickerMessage("3", "193")).Do()
 
 		if to.AlertRoomId != "" {
-			pushMessage(to.RoomId, fmt.Sprintf("(ここで ID: %s に通報する)", to.AlertRoomId))
-			pushMessage(to.AlertRoomId, fmt.Sprintf("%d 回起こしたんですが反応なかったので寝てるかもです😇", to.Repeated))
+			pushMessage(to.RoomId, fmt.Sprintf("[INFO] ここで ID: %s に通報", to.AlertRoomId))
+			pushMessage(to.AlertRoomId, fmt.Sprintf("%d 回起こしたんですが反応なかったので寝てるかも😇", to.Repeated))
 		}
 
 		log.Printf("[info] snooze repeated %d times. finish monitoring.", to.Repeated)
@@ -223,4 +235,19 @@ func onTimeout(to *timeout.Timeout) {
 func isHolidayToday() bool {
 	today := time.Now()
 	return today.Weekday() == 0 || today.Weekday() == 6 || flagday.IsPublicHolidayTime(today)
+}
+
+func sendForecast(roomId string) {
+	msg := ""
+	list := forecast.Request(130010) // tokyo
+
+	for _, v := range list {
+		msg += fmt.Sprintf("%sは %s", v.Date, v.Name)
+		if v.TempHigh != "" {
+			msg += fmt.Sprintf(" (%s°C / %s°C)", v.TempHigh, v.TempLow)
+		}
+		msg += "\n"
+	}
+
+	pushMessage(roomId, msg)
 }

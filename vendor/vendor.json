@@ -3,6 +3,12 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "I2CZTEnSMCCTmD++26cfp+A1glw=",
+			"path": "github.com/antonholmquist/jason",
+			"revision": "426ade25b261bcb4a7ad58c65badfc731854e92b",
+			"revisionTime": "2018-06-05T10:53:55Z"
+		},
+		{
 			"checksumSHA1": "Amf8vHXezO/eKMJVWfweTRQaJF0=",
 			"path": "github.com/carlescere/scheduler",
 			"revision": "ee74d2f83d82cd1d2e92ed3ec3dbaf162ca5ece5",

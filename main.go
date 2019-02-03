@@ -133,6 +133,7 @@ func onPush(c *gin.Context) {
 
 	if isHolidayToday() {
 		log.Printf("[info] Today is holiday. // todo skip")
+		return
 	}
 
 	if token != c.PostForm("token") {
@@ -175,7 +176,10 @@ func onPush(c *gin.Context) {
 			return
 		} else {
 			alertRoomId := c.PostForm("alert_room_id")
+			log.Printf("[info] sending alert room id: %s", alertRoomId)
 			snooze[roomId] = timeout.New(onTimeout, wait, roomId, userId, alertRoomId)
+			// Keep awake
+			sendKeepAwake(1200) // 20 min
 		}
 	}
 
@@ -241,13 +245,32 @@ func sendForecast(roomId string) {
 	msg := ""
 	list := forecast.Request(130010) // tokyo
 
-	for _, v := range list {
+	for k, v := range list {
 		msg += fmt.Sprintf("%sは %s", v.Date, v.Name)
 		if v.TempHigh != "" {
 			msg += fmt.Sprintf(" (%s°C / %s°C)", v.TempHigh, v.TempLow)
 		}
-		msg += "\n"
+
+		// today and tomorrow
+		if k == 0 {
+			msg += "\n"
+		} else {
+			break
+		}
 	}
 
 	pushMessage(roomId, msg)
+}
+
+func sendKeepAwake(delay int) {
+	pingUrl := "https://maker.ifttt.com/trigger/ping-awake-bot/with/key/cdhSDSavHHW-fEq1iY0Zh6"
+
+	timeout.NewTimeout(func() {
+		_, err := http.NewRequest("POST", pingUrl, nil)
+
+		if err != nil {
+			log.Print(err)
+		}
+
+	}, delay)
 }

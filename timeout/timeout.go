@@ -21,6 +21,16 @@ func New(f func(*Timeout), timeout int, roomId string, userId string, alertRoomI
 	return &to
 }
 
+func NewTimeout(f func(), timeout int) {
+	go invokeAfter(f, timeout)
+}
+
+func invokeAfter(f func(), timeout int) {
+	time.Sleep(time.Duration(timeout) * time.Second)
+
+	f()
+}
+
 // invoke func after timeout sec
 func setTimeout(to *Timeout) {
 	time.Sleep(time.Duration(to.Sec) * time.Second)

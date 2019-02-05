@@ -263,14 +263,17 @@ func sendForecast(roomId string) {
 }
 
 func sendKeepAwake(delay int) {
-	pingUrl := "https://maker.ifttt.com/trigger/ping-awake-bot/with/key/cdhSDSavHHW-fEq1iY0Zh6"
+	token := os.Getenv("IFTTT_WEBHOOK_TOKEN")
+	pingUrl := "https://maker.ifttt.com/trigger/ping-awake-bot/with/key/" + token
 
 	timeout.NewTimeout(func() {
-		_, err := http.NewRequest("POST", pingUrl, nil)
+		_, err := http.PostForm(pingUrl, nil)
 
 		if err != nil {
 			log.Print(err)
+			return
 		}
 
+		log.Printf("[info] Request ping for keep-alive.")
 	}, delay)
 }
